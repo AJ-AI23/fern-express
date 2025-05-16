@@ -115,39 +115,40 @@ app.post('/generate', checkApiKey, async (req, res) => {
       // Initialize Fern project with OpenAPI spec
       console.log('Initializing Fern project with OpenAPI spec...');
       try {
-        const initCommand = `fern init --openapi ${specFilePath}`;
-        console.log(`Executing: ${initCommand}`);
-        const initOutput = execSync(initCommand, { 
-          cwd: workDir, 
-          stdio: 'pipe',
-          encoding: 'utf8'
-        });
-        if (DEBUG) console.log('Fern init output:', initOutput);
+        // Create the fern directory structure manually
+        const fernDir = path.join(workDir, 'fern');
+        fs.ensureDirSync(fernDir);
+        
+        // Create the openapi directory inside fern
+        const openapiDir = path.join(fernDir, 'openapi');
+        fs.ensureDirSync(openapiDir);
+        
+        // Copy the spec file to the openapi directory
+        fs.copySync(specFilePath, path.join(openapiDir, 'openapi.yaml'));
+        
+        // Create a basic fern.config.json
+        fs.writeFileSync(path.join(fernDir, 'fern.config.json'), JSON.stringify({
+          "organization": "user",
+          "version": "0.1.0"
+        }));
+        
+        console.log('Fern project structure created manually');
       } catch (initError) {
-        console.error('Error initializing Fern project:', initError.message);
-        console.error('Stderr:', initError.stderr);
-        console.error('Stdout:', initError.stdout);
+        console.error('Error creating Fern project structure:', initError.message);
         return res.status(500).json({ 
-          error: `Fern initialization failed: ${initError.message}`,
-          details: {
-            stderr: initError.stderr,
-            stdout: initError.stdout
-          }
+          error: `Fern project structure creation failed: ${initError.message}`
         });
       }
       
-      // Generate SDK with better error handling
-      console.log(`Generating ${language} SDK...`);
-      
-      // Create or update generators.yml in the fern directory
-      const fernDir = path.join(workDir, 'fern');
-      fs.ensureDirSync(fernDir);
-      
+      // Generate generators.yml in the fern directory
+      console.log('Creating generators configuration...');
       const generatorsContent = generateFernGeneratorsConfig(language, packageName, config);
       const generatorsPath = path.join(fernDir, 'generators.yml');
       fs.writeFileSync(generatorsPath, generatorsContent);
       console.log('Created Fern generators.yml file');
       
+      // Generate SDK with better error handling
+      console.log(`Generating ${language} SDK...`);
       try {
         // Use --local flag for local generation in Docker
         const genOutput = execSync('fern generate --local', { 
