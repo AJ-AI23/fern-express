@@ -13,6 +13,7 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY; // For basic auth
+const DEBUG = process.env.DEBUG === 'true';
 
 // Middleware
 app.use(cors());
@@ -86,14 +87,61 @@ app.post('/generate', checkApiKey, async (req, res) => {
       fs.writeFileSync(fernConfigPath, fernConfig);
       console.log('Created Fern configuration file');
       
-      // Initialize Fern project
-      console.log('Initializing Fern project...');
-      execSync('npx fern init --local', { cwd: workDir, stdio: 'inherit' });
+      // Check for npx/npm installation
+      try {
+        console.log('Verifying npm/npx availability...');
+        execSync('npm --version', { stdio: DEBUG ? 'inherit' : 'pipe' });
+        console.log('npm is available');
+      } catch (npmError) {
+        console.error('Error checking npm:', npmError.message);
+        return res.status(500).json({ error: 'npm/npx is not available on the server' });
+      }
       
-      // Generate SDK
+      // Initialize Fern project with better error handling
+      console.log('Initializing Fern project...');
+      try {
+        const initOutput = execSync('npx fern init --local', { 
+          cwd: workDir, 
+          stdio: 'pipe',
+          encoding: 'utf8'
+        });
+        if (DEBUG) console.log('Fern init output:', initOutput);
+      } catch (initError) {
+        console.error('Error initializing Fern project:', initError.message);
+        console.error('Stderr:', initError.stderr);
+        console.error('Stdout:', initError.stdout);
+        return res.status(500).json({ 
+          error: `Fern initialization failed: ${initError.message}`,
+          details: {
+            stderr: initError.stderr,
+            stdout: initError.stdout
+          }
+        });
+      }
+      
+      // Generate SDK with better error handling
       console.log(`Generating ${language} SDK...`);
       const generators = getGeneratorForLanguage(language);
-      execSync(`npx fern generate ${generators}`, { cwd: workDir, stdio: 'inherit' });
+      try {
+        const genOutput = execSync(`npx fern generate ${generators}`, { 
+          cwd: workDir, 
+          stdio: 'pipe',
+          encoding: 'utf8'
+        });
+        if (DEBUG) console.log('Fern generate output:', genOutput);
+      } catch (genError) {
+        console.error('Error generating SDK:', genError.message);
+        console.error('Stderr:', genError.stderr);
+        console.error('Stdout:', genError.stdout);
+        return res.status(500).json({ 
+          error: `SDK generation failed: ${genError.message}`,
+          details: {
+            stderr: genError.stderr,
+            stdout: genError.stdout
+          }
+        });
+      }
+      
       console.log('SDK generation completed');
       
       // Create ZIP archive
@@ -260,4 +308,5 @@ async function createZipArchive(sourceDir, outputPath) {
 app.listen(port, () => {
   console.log(`Fern SDK Generator Server listening on port ${port}`);
   console.log('API Key protection:', API_KEY ? 'Enabled' : 'Disabled');
+  console.log('Debug mode:', DEBUG ? 'Enabled' : 'Disabled');
 });
