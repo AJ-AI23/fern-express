@@ -97,10 +97,31 @@ app.post('/generate', checkApiKey, async (req, res) => {
         return res.status(500).json({ error: 'npm/npx is not available on the server' });
       }
       
+      // Explicitly install Fern CLI globally before using it
+      console.log('Installing Fern CLI globally...');
+      try {
+        execSync('npm install -g fern-api', { 
+          stdio: DEBUG ? 'inherit' : 'pipe',
+          encoding: 'utf8' 
+        });
+        console.log('Fern CLI installed successfully');
+      } catch (installError) {
+        console.error('Error installing Fern CLI:', installError.message);
+        console.error('Stderr:', installError.stderr);
+        console.error('Stdout:', installError.stdout);
+        return res.status(500).json({ 
+          error: `Failed to install Fern CLI: ${installError.message}`,
+          details: {
+            stderr: installError.stderr,
+            stdout: installError.stdout
+          }
+        });
+      }
+      
       // Initialize Fern project with better error handling
       console.log('Initializing Fern project...');
       try {
-        const initOutput = execSync('npx fern init --local', { 
+        const initOutput = execSync('fern init --local', { 
           cwd: workDir, 
           stdio: 'pipe',
           encoding: 'utf8'
@@ -123,7 +144,7 @@ app.post('/generate', checkApiKey, async (req, res) => {
       console.log(`Generating ${language} SDK...`);
       const generators = getGeneratorForLanguage(language);
       try {
-        const genOutput = execSync(`npx fern generate ${generators}`, { 
+        const genOutput = execSync(`fern generate ${generators}`, { 
           cwd: workDir, 
           stdio: 'pipe',
           encoding: 'utf8'
