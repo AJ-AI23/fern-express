@@ -477,7 +477,7 @@ async function createZipArchive(sourceDir, outputPath) {
 }
 
 // Start the server
-app.listen(port, => {
+app.listen(port, () => {
   console.log(`Fern SDK Generator Server listening on port ${port}`);
   console.log('API Key protection:', API_KEY ? 'Enabled' : 'Disabled');
   console.log('Debug mode:', DEBUG ? 'Enabled' : 'Disabled');
