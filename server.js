@@ -112,11 +112,13 @@ app.post('/generate', checkApiKey, async (req, res) => {
         });
       }
       
+      // Define fernDir outside the try block so it's accessible throughout the function
+      const fernDir = path.join(workDir, 'fern');
+      
       // Initialize Fern project with OpenAPI spec
       console.log('Initializing Fern project with OpenAPI spec...');
       try {
         // Create the fern directory structure manually
-        const fernDir = path.join(workDir, 'fern');
         fs.ensureDirSync(fernDir);
         
         // Create the openapi directory inside fern
