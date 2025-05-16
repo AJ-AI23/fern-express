@@ -1,0 +1,6 @@
+
+node_modules
+.env
+tmp
+yarn-error.log
+npm-debug.log
