@@ -9,18 +9,37 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-const app = express();
+// Environment variables with defaults
 const port = process.env.PORT || 3000;
-const API_KEY = process.env.API_KEY; // For basic auth
+const API_KEY = process.env.API_KEY || 'development-key'; // Default key for development
 const DEBUG = process.env.DEBUG === 'true';
+
+// Validate required environment variables
+if (!process.env.PORT) {
+  console.warn('Warning: PORT not set, using default port 3000');
+}
+
+if (!process.env.API_KEY) {
+  console.warn('Warning: API_KEY not set, using development key');
+}
 
 const config = {
   fernCliVersion: process.env.FERN_CLI_VERSION || '0.61.18',
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '52428800'), // 50MB in bytes
-  tempDir: process.env.TEMP_DIR || './tmp',
+  tempDir: process.env.TEMP_DIR || '/tmp',
   // ... other config options
 };
 
+// Ensure temp directory exists
+try {
+  fs.ensureDirSync(config.tempDir);
+  console.log(`Using temp directory: ${config.tempDir}`);
+} catch (error) {
+  console.error(`Failed to create temp directory: ${error.message}`);
+  process.exit(1);
+}
+
+const app = express();
 const logger = {
   info: (message, meta = {}) => {
     console.log(JSON.stringify({ level: 'info', message, ...meta }));
@@ -58,88 +77,93 @@ const checkApiKey = (req, res, next) => {
 
 // Common setup function for both /check and /generate endpoints
 const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
-  // Extract options with defaults
-  const language = options.language || 'typescript';
-  const packageName = options.packageName || 'api-client';
-  const config = options.config || {};
-  const isCheckOnly = options.isCheckOnly || false;
-  
-  // Validate request
-  if (!req.files || !req.files.spec) {
-    throw new Error('No OpenAPI spec file provided');
-  }
-  
-  // Save spec file
-  const specFile = req.files.spec;
-  await specFile.mv(specFilePath);
-  logger.info(`Spec file saved to ${specFilePath}`);
-  
-  // Check for npm installation
-  logger.info('Verifying npm availability...');
   try {
-    execSync('npm --version', { stdio: DEBUG ? 'inherit' : 'pipe' });
-    logger.info('npm is available');
-  } catch (npmError) {
-    logger.error('Error checking npm:', npmError.message);
-    throw new Error('npm is not available on the server');
+    // Extract options with defaults
+    const language = options.language || 'typescript';
+    const packageName = options.packageName || 'api-client';
+    const config = options.config || {};
+    const isCheckOnly = options.isCheckOnly || false;
+    
+    // Validate request
+    if (!req.files || !req.files.spec) {
+      throw new Error('No OpenAPI spec file provided');
+    }
+    
+    // Save spec file
+    const specFile = req.files.spec;
+    await specFile.mv(specFilePath);
+    logger.info(`Spec file saved to ${specFilePath}`);
+    
+    // Check for npm installation
+    logger.info('Verifying npm availability...');
+    try {
+      execSync('npm --version', { stdio: DEBUG ? 'inherit' : 'pipe' });
+      logger.info('npm is available');
+    } catch (npmError) {
+      logger.error('Error checking npm:', npmError.message);
+      throw new Error('npm is not available on the server');
+    }
+    
+    // Explicitly install Fern CLI globally before using it
+    logger.info('Installing Fern CLI globally...');
+    try {
+      execSync(`npm install -g fern-api@${config.fernCliVersion || '0.61.18'}`, { 
+        stdio: DEBUG ? 'inherit' : 'pipe',
+        encoding: 'utf8' 
+      });
+      logger.info('Fern CLI installed successfully');
+    } catch (installError) {
+      logger.error('Error installing Fern CLI:', installError.message);
+      logger.error('Stderr:', installError.stderr);
+      logger.error('Stdout:', installError.stdout);
+      throw new Error(`Failed to install Fern CLI: ${installError.message}`);
+    }
+    
+    // Create Fern project structure
+    const fernDir = path.join(workDir, 'fern');
+    logger.info('Creating Fern project structure...');
+    fs.ensureDirSync(fernDir);
+    
+    // Create the openapi directory inside fern
+    const openapiDir = path.join(fernDir, 'openapi');
+    fs.ensureDirSync(openapiDir);
+    
+    // Copy the spec file to the openapi directory
+    fs.copySync(specFilePath, path.join(openapiDir, 'openapi.yaml'));
+    
+    // Create a basic fern.config.json in the fern directory
+    fs.writeFileSync(path.join(fernDir, 'fern.config.json'), JSON.stringify({
+      "organization": "user",
+      "version": "0.1.0"
+    }));
+    
+    // Create generators.yml file with appropriate content
+    logger.info('Creating generators configuration...');
+    let generatorsContent;
+    
+    if (isCheckOnly) {
+      // For check endpoint, create a minimal generators file
+      generatorsContent = '# Minimal generators file for validation';
+    } else {
+      // For generate endpoint, create a full generators config
+      generatorsContent = generateFernGeneratorsConfig(language, packageName, config);
+    }
+    
+    // Write generators.yml to both locations to ensure compatibility
+    const fernGeneratorsPath = path.join(fernDir, 'generators.yml');
+    fs.writeFileSync(fernGeneratorsPath, generatorsContent);
+    
+    const openapiGeneratorsPath = path.join(openapiDir, 'generators.yml');
+    fs.writeFileSync(openapiGeneratorsPath, generatorsContent);
+    
+    logger.info('Created Fern generators.yml files');
+    
+    logger.info('Fern project structure created');
+    return fernDir;
+  } catch (error) {
+    logger.error('Error in setupFernProject:', error);
+    throw error;
   }
-  
-  // Explicitly install Fern CLI globally before using it
-  logger.info('Installing Fern CLI globally...');
-  try {
-    execSync(`npm install -g fern-api@${config.fernCliVersion}`, { 
-      stdio: DEBUG ? 'inherit' : 'pipe',
-      encoding: 'utf8' 
-    });
-    logger.info('Fern CLI installed successfully');
-  } catch (installError) {
-    logger.error('Error installing Fern CLI:', installError.message);
-    logger.error('Stderr:', installError.stderr);
-    logger.error('Stdout:', installError.stdout);
-    throw new Error(`Failed to install Fern CLI: ${installError.message}`);
-  }
-  
-  // Create Fern project structure
-  const fernDir = path.join(workDir, 'fern');
-  logger.info('Creating Fern project structure...');
-  fs.ensureDirSync(fernDir);
-  
-  // Create the openapi directory inside fern
-  const openapiDir = path.join(fernDir, 'openapi');
-  fs.ensureDirSync(openapiDir);
-  
-  // Copy the spec file to the openapi directory
-  fs.copySync(specFilePath, path.join(openapiDir, 'openapi.yaml'));
-  
-  // Create a basic fern.config.json in the fern directory
-  fs.writeFileSync(path.join(fernDir, 'fern.config.json'), JSON.stringify({
-    "organization": "user",
-    "version": "0.1.0"
-  }));
-  
-  // Create generators.yml file with appropriate content
-  logger.info('Creating generators configuration...');
-  let generatorsContent;
-  
-  if (isCheckOnly) {
-    // For check endpoint, create a minimal generators file
-    generatorsContent = '# Minimal generators file for validation';
-  } else {
-    // For generate endpoint, create a full generators config
-    generatorsContent = generateFernGeneratorsConfig(language, packageName, config);
-  }
-  
-  // Write generators.yml to both locations to ensure compatibility
-  const fernGeneratorsPath = path.join(fernDir, 'generators.yml');
-  fs.writeFileSync(fernGeneratorsPath, generatorsContent);
-  
-  const openapiGeneratorsPath = path.join(openapiDir, 'generators.yml');
-  fs.writeFileSync(openapiGeneratorsPath, generatorsContent);
-  
-  logger.info('Created Fern generators.yml files');
-  
-  logger.info('Fern project structure created');
-  return fernDir;
 };
 
 // Helper function to generate Fern generators config
@@ -465,6 +489,28 @@ async function cleanupWorkDir(workDir) {
     logger.error(`Failed to cleanup directory: ${workDir}`, { error: error.message });
   }
 }
+
+// Add error handling middleware
+app.use((err, req, res, next) => {
+  logger.error('Unhandled error:', err);
+  res.status(500).json({
+    error: 'Internal server error',
+    message: DEBUG ? err.message : 'An unexpected error occurred'
+  });
+});
+
+// Add process error handlers
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught Exception:', err);
+  // Give time for logging before exit
+  setTimeout(() => process.exit(1), 1000);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Give time for logging before exit
+  setTimeout(() => process.exit(1), 1000);
+});
 
 // Start the server
 app.listen(port, () => {
