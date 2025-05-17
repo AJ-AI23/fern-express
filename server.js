@@ -257,9 +257,9 @@ app.post('/check', checkApiKey, async (req, res) => {
 
   const language = req.body.language;
   const packageName = req.body.packageName;
-  const config = req.body.config ? JSON.parse(req.body.config) : {};
+  const requestConfig = req.body.config ? JSON.parse(req.body.config) : {};
   // Use isCheckOnly flag
-  config.isCheckOnly = true;
+  requestConfig.isCheckOnly = true;
 
   // Create a unique working directory
   const workDir = path.join(config.tempDir, `fern-check-${Date.now()}`);
@@ -271,7 +271,7 @@ app.post('/check', checkApiKey, async (req, res) => {
     const fernDir = await setupFernProject(req, workDir, specFilePath, {
       language,
       packageName,
-      config
+      config: requestConfig
     });
     
     // Run Fern check command
