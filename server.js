@@ -127,12 +127,12 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
     logger.info('Creating Fern project structure...');
     fs.ensureDirSync(fernDir);
     
-    // Create the openapi directory inside fern
-    const openapiDir = path.join(fernDir, 'openapi');
-    fs.ensureDirSync(openapiDir);
+    // Create the api directory inside fern (this is the correct structure)
+    const apiDir = path.join(fernDir, 'api');
+    fs.ensureDirSync(apiDir);
     
-    // Copy the spec file to the openapi directory
-    fs.copySync(specFilePath, path.join(openapiDir, 'openapi.yaml'));
+    // Copy the spec file to the api directory
+    fs.copySync(specFilePath, path.join(apiDir, 'openapi.yaml'));
     
     // Create a basic fern.config.json in the fern directory
     fs.writeFileSync(path.join(fernDir, 'fern.config.json'), JSON.stringify({
@@ -152,21 +152,21 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
       generatorsContent = generateFernGeneratorsConfig(language, packageName, config);
     }
     
-    // Write generators.yml to both locations to ensure compatibility
+    // Write generators.yml to the fern directory
     const fernGeneratorsPath = path.join(fernDir, 'generators.yml');
     fs.writeFileSync(fernGeneratorsPath, generatorsContent);
     
-    const openapiGeneratorsPath = path.join(openapiDir, 'generators.yml');
-    fs.writeFileSync(openapiGeneratorsPath, generatorsContent);
+    logger.info('Created Fern project structure', {
+      fernDir,
+      apiDir,
+      configPath: fernGeneratorsPath
+    });
     
-    logger.info('Created Fern generators.yml files');
-
     // Create output directory for generated files
     const outputDir = path.join(workDir, 'generated');
     fs.ensureDirSync(outputDir);
     logger.info('Created output directory', { outputDir });
     
-    logger.info('Fern project structure created');
     return fernDir;
   } catch (error) {
     logger.error('Error in setupFernProject:', error);
