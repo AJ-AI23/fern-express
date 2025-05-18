@@ -46,6 +46,9 @@ const logger = {
   },
   error: (message, meta = {}) => {
     console.error(JSON.stringify({ level: 'error', message, ...meta }));
+  },
+  warn: (message, meta = {}) => {
+    console.warn(JSON.stringify({ level: 'warn', message, ...meta }));
   }
 };
 
@@ -157,6 +160,11 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
     fs.writeFileSync(openapiGeneratorsPath, generatorsContent);
     
     logger.info('Created Fern generators.yml files');
+
+    // Create output directory for generated files
+    const outputDir = path.join(workDir, 'generated');
+    fs.ensureDirSync(outputDir);
+    logger.info('Created output directory', { outputDir });
     
     logger.info('Fern project structure created');
     return fernDir;
@@ -429,6 +437,13 @@ app.post('/generate', checkApiKey, async (req, res) => {
           encoding: 'utf8'
         });
         if (DEBUG) logger.info('Fern generate output:', genOutput);
+
+        // Verify the generated directory exists
+        const generatedDir = path.join(workDir, 'generated');
+        if (!fs.existsSync(generatedDir)) {
+          throw new Error('Generated directory was not created by Fern');
+        }
+        logger.info('Generated directory verified', { generatedDir });
       } catch (genError) {
         logger.error('Error generating SDK:', {
           error: genError.message,
@@ -554,7 +569,7 @@ async function createZipArchive(sourceDir, outputPath) {
     if (fs.existsSync(generatedDir)) {
       archive.directory(generatedDir, 'generated');
     } else {
-      logger.warn('Warning: Generated directory not found');
+      logger.warn('Generated directory not found', { generatedDir });
     }
     
     archive.finalize();
