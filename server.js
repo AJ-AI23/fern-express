@@ -172,15 +172,13 @@ function generateFernGeneratorsConfig(language, packageName, config) {
   
   switch (language) {
     case 'typescript':
-      generators = `default-group: local
-
-groups:
+      generators = `groups:
   typescript:
     generators:
       - name: fernapi/fern-typescript-node-sdk
         version: 1.0.0
         output:
-          location: local
+          location: local-file-system
           path: ./generated/typescript
         config:
           outputSourceFiles: true
@@ -188,15 +186,13 @@ groups:
           includeTests: ${config.includeTests || false}`;
       break;
     case 'python':
-      generators = `default-group: local
-
-groups:
+      generators = `groups:
   python:
     generators:
       - name: fernapi/fern-python-sdk
         version: 4.20.2
         output:
-          location: local
+          location: local-file-system
           path: ./generated/python
         config:
           outputSourceFiles: true
@@ -204,15 +200,13 @@ groups:
           include_tests: ${config.includeTests || false}`;
       break;
     case 'java':
-      generators = `default-group: local
-
-groups:
+      generators = `groups:
   java:
     generators:
       - name: fernapi/fern-java-sdk
         version: 2.36.2
         output:
-          location: local
+          location: local-file-system
           path: ./generated/java
         config:
           outputSourceFiles: true
@@ -221,15 +215,13 @@ groups:
             tests: ${config.includeTests || false}`;
       break;
     case 'go':
-      generators = `default-group: local
-
-groups:
+      generators = `groups:
   go:
     generators:
       - name: fernapi/fern-go-sdk
         version: 0.38.0
         output:
-          location: local
+          location: local-file-system
           path: ./generated/go
         config:
           outputSourceFiles: true
@@ -238,15 +230,13 @@ groups:
           include-tests: ${config.includeTests || false}`;
       break;
     case 'ruby':
-      generators = `default-group: local
-
-groups:
+      generators = `groups:
   ruby:
     generators:
       - name: fernapi/fern-ruby-sdk
         version: 0.9.0-rc2
         output:
-          location: local
+          location: local-file-system
           path: ./generated/ruby
         config:
           outputSourceFiles: true
@@ -254,15 +244,13 @@ groups:
           include-tests: ${config.includeTests || false}`;
       break;
     case 'csharp':
-      generators = `default-group: local
-
-groups:
+      generators = `groups:
   csharp:
     generators:
       - name: fernapi/fern-csharp-sdk
         version: 1.17.4
         output:
-          location: local
+          location: local-file-system
           path: ./generated/csharp
         config:
           outputSourceFiles: true
@@ -270,15 +258,13 @@ groups:
           include-tests: ${config.includeTests || false}`;
       break;
     default:
-      generators = `default-group: local
-
-groups:
+      generators = `groups:
   typescript:
     generators:
       - name: fernapi/fern-typescript-node-sdk
         version: 1.0.0
         output:
-          location: local
+          location: local-file-system
           path: ./generated/typescript
         config:
           outputSourceFiles: true
