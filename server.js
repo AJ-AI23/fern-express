@@ -401,7 +401,7 @@ app.post('/generate', checkApiKey, async (req, res) => {
     
     const language = req.body.language;
     const packageName = req.body.packageName;
-    const config = req.body.config ? JSON.parse(req.body.config) : {};
+    const requestConfig = req.body.config ? JSON.parse(req.body.config) : {};
     
     // Create a unique working directory
     const workDir = path.join(config.tempDir, `fern-${Date.now()}`);
@@ -416,7 +416,7 @@ app.post('/generate', checkApiKey, async (req, res) => {
       const fernDir = await setupFernProject(req, workDir, specFilePath, {
         language,
         packageName,
-        config
+        config: requestConfig
       });
       
       // Generate SDK with better error handling
