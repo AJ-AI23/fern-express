@@ -134,7 +134,7 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
     // Create a basic fern.config.json in the fern directory
     fs.writeFileSync(path.join(fernDir, 'fern.config.json'), JSON.stringify({
       "organization": "user",
-      "version": "0.1.0"
+      "version": "0.61.19"
     }));
     
     // Create generators.yml file with appropriate content
@@ -172,82 +172,118 @@ function generateFernGeneratorsConfig(language, packageName, config) {
   
   switch (language) {
     case 'typescript':
-      generators = `
-typescript:
-  mode: client
-  output:
-    location: local
-    path: ./generated/typescript
-  name: ${packageName}
-  includeExamples: ${config.includeExamples || true}
-  includeTests: ${config.includeTests || false}`;
+      generators = `default-group: local
+
+groups:
+  typescript:
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 1.0.0
+        output:
+          location: local
+          path: ./generated/typescript
+        config:
+          outputSourceFiles: true
+          includeExamples: ${config.includeExamples || true}
+          includeTests: ${config.includeTests || false}`;
       break;
     case 'python':
-      generators = `
-python:
-  mode: client
-  output:
-    location: local
-    path: ./generated/python
-  name: ${packageName}
-  include_tests: ${config.includeTests || false}
-  include_examples: ${config.includeExamples || true}`;
+      generators = `default-group: local
+
+groups:
+  python:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: 4.20.2
+        output:
+          location: local
+          path: ./generated/python
+        config:
+          outputSourceFiles: true
+          include_examples: ${config.includeExamples || true}
+          include_tests: ${config.includeTests || false}`;
       break;
     case 'java':
-      generators = `
-java:
-  mode: client
-  output:
-    location: local
-    path: ./generated/java
-  name: ${packageName}
-  includes:
-    examples: ${config.includeExamples || true}
-    tests: ${config.includeTests || false}`;
+      generators = `default-group: local
+
+groups:
+  java:
+    generators:
+      - name: fernapi/fern-java-sdk
+        version: 2.36.2
+        output:
+          location: local
+          path: ./generated/java
+        config:
+          outputSourceFiles: true
+          includes:
+            examples: ${config.includeExamples || true}
+            tests: ${config.includeTests || false}`;
       break;
     case 'go':
-      generators = `
-go:
-  mode: client
-  output:
-    location: local
-    path: ./generated/go
-  module-path: github.com/${packageName}/sdk
-  include-examples: ${config.includeExamples || true}
-  include-tests: ${config.includeTests || false}`;
+      generators = `default-group: local
+
+groups:
+  go:
+    generators:
+      - name: fernapi/fern-go-sdk
+        version: 0.38.0
+        output:
+          location: local
+          path: ./generated/go
+        config:
+          outputSourceFiles: true
+          module-path: github.com/${packageName}/sdk
+          include-examples: ${config.includeExamples || true}
+          include-tests: ${config.includeTests || false}`;
       break;
     case 'ruby':
-      generators = `
-ruby:
-  mode: client
-  output:
-    location: local
-    path: ./generated/ruby
-  name: ${packageName}
-  include-examples: ${config.includeExamples || true}
-  include-tests: ${config.includeTests || false}`;
+      generators = `default-group: local
+
+groups:
+  ruby:
+    generators:
+      - name: fernapi/fern-ruby-sdk
+        version: 0.9.0-rc2
+        output:
+          location: local
+          path: ./generated/ruby
+        config:
+          outputSourceFiles: true
+          include-examples: ${config.includeExamples || true}
+          include-tests: ${config.includeTests || false}`;
       break;
     case 'csharp':
-      generators = `
-csharp:
-  mode: client
-  output:
-    location: local
-    path: ./generated/csharp
-  name: ${packageName}
-  include-examples: ${config.includeExamples || true}
-  include-tests: ${config.includeTests || false}`;
+      generators = `default-group: local
+
+groups:
+  csharp:
+    generators:
+      - name: fernapi/fern-csharp-sdk
+        version: 1.17.4
+        output:
+          location: local
+          path: ./generated/csharp
+        config:
+          outputSourceFiles: true
+          include-examples: ${config.includeExamples || true}
+          include-tests: ${config.includeTests || false}`;
       break;
     default:
-      generators = `
-typescript:
-  mode: client
-  output:
-    location: local
-    path: ./generated/typescript
-  name: ${packageName}
-  includeExamples: ${config.includeExamples || true}
-  includeTests: ${config.includeTests || false}`;
+      generators = `default-group: local
+
+groups:
+  typescript:
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 1.0.0
+        output:
+          location: local
+          path: ./generated/typescript
+        config:
+          outputSourceFiles: true
+          includeExamples: ${config.includeExamples || true}
+          includeTests: ${config.includeTests || false}`;
   }
   
   return generators;
