@@ -430,19 +430,61 @@ app.post('/generate', checkApiKey, async (req, res) => {
       // Generate SDK with better error handling
       logger.info(`Generating ${language} SDK...`);
       try {
+        // Log the working directory structure before generation
+        logger.info('Working directory structure before generation:', {
+          workDir,
+          contents: fs.readdirSync(workDir)
+        });
+
         // Use --local flag for local generation in Docker
+        logger.info('Running Fern generate command...');
         const genOutput = execSync('fern generate --local', { 
           cwd: workDir, 
           stdio: 'pipe',
           encoding: 'utf8'
         });
-        if (DEBUG) logger.info('Fern generate output:', genOutput);
+        
+        // Log the full Fern output
+        logger.info('Fern generate command output:', {
+          output: genOutput,
+          workDir
+        });
 
-        // Verify the generated directory exists
+        // Verify the generated directory exists and log its contents
         const generatedDir = path.join(workDir, 'generated');
         if (!fs.existsSync(generatedDir)) {
+          logger.error('Generated directory not found after Fern generation', {
+            workDir,
+            contents: fs.readdirSync(workDir)
+          });
           throw new Error('Generated directory was not created by Fern');
         }
+
+        // Log the contents of the generated directory
+        const generatedContents = fs.readdirSync(generatedDir);
+        logger.info('Generated directory contents:', {
+          generatedDir,
+          contents: generatedContents,
+          fileCount: generatedContents.length
+        });
+
+        // If there's a language-specific directory, log its contents too
+        const languageDir = path.join(generatedDir, language);
+        if (fs.existsSync(languageDir)) {
+          const languageContents = fs.readdirSync(languageDir);
+          logger.info('Language-specific directory contents:', {
+            languageDir,
+            contents: languageContents,
+            fileCount: languageContents.length
+          });
+        } else {
+          logger.warn('Language-specific directory not found', {
+            language,
+            languageDir,
+            generatedContents
+          });
+        }
+
         logger.info('Generated directory verified', { generatedDir });
       } catch (genError) {
         logger.error('Error generating SDK:', {
@@ -450,7 +492,9 @@ app.post('/generate', checkApiKey, async (req, res) => {
           stderr: genError.stderr,
           stdout: genError.stdout,
           code: genError.code,
-          signal: genError.signal
+          signal: genError.signal,
+          workDir,
+          workDirContents: fs.existsSync(workDir) ? fs.readdirSync(workDir) : 'Directory not found'
         });
         return res.status(500).json({ 
           error: `SDK generation failed: ${genError.message}`,
@@ -476,7 +520,10 @@ app.post('/generate', checkApiKey, async (req, res) => {
           stack: zipError.stack
         });
         return res.status(500).json({ 
-          error: `Failed to create ZIP archive: ${zipError.message}`
+          error: `Failed to create ZIP archive: ${zipError.message}`,
+          details: DEBUG ? {
+            stack: zipError.stack
+          } : undefined
         });
       }
       
@@ -554,7 +601,12 @@ async function createZipArchive(sourceDir, outputPath) {
     });
     
     output.on('close', () => {
-      logger.info(`Archive created: ${archive.pointer()} bytes`);
+      const size = archive.pointer();
+      if (size === 0) {
+        reject(new Error('No files were generated to archive'));
+        return;
+      }
+      logger.info(`Archive created: ${size} bytes`);
       resolve();
     });
     
@@ -567,9 +619,20 @@ async function createZipArchive(sourceDir, outputPath) {
     // Add the generated directory to the archive
     const generatedDir = path.join(sourceDir, 'generated');
     if (fs.existsSync(generatedDir)) {
+      // Check if the directory is empty
+      const files = fs.readdirSync(generatedDir);
+      if (files.length === 0) {
+        reject(new Error('Generated directory is empty'));
+        return;
+      }
+      logger.info('Adding files to archive', { 
+        directory: generatedDir,
+        fileCount: files.length
+      });
       archive.directory(generatedDir, 'generated');
     } else {
-      logger.warn('Generated directory not found', { generatedDir });
+      reject(new Error('Generated directory not found'));
+      return;
     }
     
     archive.finalize();
