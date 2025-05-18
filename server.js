@@ -375,16 +375,28 @@ app.post('/check', checkApiKey, async (req, res) => {
 
 // SDK Generation endpoint
 app.post('/generate', checkApiKey, async (req, res) => {
-  logger.info('Received SDK generation request');
+  logger.info('Received SDK generation request', { 
+    language: req.body.language,
+    packageName: req.body.packageName,
+    hasConfig: !!req.body.config,
+    hasFiles: !!req.files
+  });
   
   try {
     // Validate request parameters
     if (!req.body.language) {
+      logger.error('Missing language parameter');
       return res.status(400).json({ error: 'Language parameter is required' });
     }
     
     if (!req.body.packageName) {
+      logger.error('Missing package name parameter');
       return res.status(400).json({ error: 'Package name is required' });
+    }
+
+    if (!req.files || !req.files.spec) {
+      logger.error('No spec file provided in request');
+      return res.status(400).json({ error: 'OpenAPI spec file is required' });
     }
     
     const language = req.body.language;
@@ -393,12 +405,14 @@ app.post('/generate', checkApiKey, async (req, res) => {
     
     // Create a unique working directory
     const workDir = path.join(config.tempDir, `fern-${Date.now()}`);
+    logger.info('Creating work directory', { workDir });
     fs.ensureDirSync(workDir);
     
     try {
       const specFilePath = path.join(workDir, 'openapi.yaml');
       
       // Use common setup function with generation options
+      logger.info('Setting up Fern project', { language, packageName });
       const fernDir = await setupFernProject(req, workDir, specFilePath, {
         language,
         packageName,
@@ -416,14 +430,19 @@ app.post('/generate', checkApiKey, async (req, res) => {
         });
         if (DEBUG) logger.info('Fern generate output:', genOutput);
       } catch (genError) {
-        logger.error('Error generating SDK:', genError.message);
-        logger.error('Stderr:', genError.stderr);
-        logger.error('Stdout:', genError.stdout);
+        logger.error('Error generating SDK:', {
+          error: genError.message,
+          stderr: genError.stderr,
+          stdout: genError.stdout,
+          code: genError.code,
+          signal: genError.signal
+        });
         return res.status(500).json({ 
           error: `SDK generation failed: ${genError.message}`,
           details: {
             stderr: genError.stderr,
-            stdout: genError.stdout
+            stdout: genError.stdout,
+            code: genError.code
           }
         });
       }
@@ -432,30 +451,69 @@ app.post('/generate', checkApiKey, async (req, res) => {
       
       // Create ZIP archive
       const zipPath = path.join(workDir, 'sdk.zip');
-      await createZipArchive(workDir, zipPath);
-      logger.info(`Created ZIP archive at ${zipPath}`);
+      logger.info('Creating ZIP archive', { zipPath });
+      try {
+        await createZipArchive(workDir, zipPath);
+        logger.info(`Created ZIP archive at ${zipPath}`);
+      } catch (zipError) {
+        logger.error('Error creating ZIP archive:', {
+          error: zipError.message,
+          stack: zipError.stack
+        });
+        return res.status(500).json({ 
+          error: `Failed to create ZIP archive: ${zipError.message}`
+        });
+      }
       
       // Send the ZIP file as a response
       res.setHeader('Content-Type', 'application/zip');
       res.setHeader('Content-Disposition', `attachment; filename=${packageName}-${language}-sdk.zip`);
-      fs.createReadStream(zipPath).pipe(res);
+      
+      try {
+        fs.createReadStream(zipPath).pipe(res);
+      } catch (streamError) {
+        logger.error('Error streaming ZIP file:', {
+          error: streamError.message,
+          stack: streamError.stack
+        });
+        return res.status(500).json({ 
+          error: `Failed to stream ZIP file: ${streamError.message}`
+        });
+      }
       
       // Schedule cleanup after response is sent
       res.on('finish', async () => {
         try {
           await cleanupWorkDir(workDir);
         } catch (cleanupErr) {
-          logger.error('Error during cleanup:', cleanupErr);
+          logger.error('Error during cleanup:', {
+            error: cleanupErr.message,
+            stack: cleanupErr.stack
+          });
         }
       });
     } catch (error) {
       // Clean up on error
+      logger.error('Error in generate endpoint:', {
+        error: error.message,
+        stack: error.stack,
+        workDir
+      });
       await cleanupWorkDir(workDir);
       throw error;
     }
   } catch (error) {
-    logger.error('Error generating SDK:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error('Unhandled error in generate endpoint:', {
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: DEBUG ? {
+        message: error.message,
+        stack: error.stack
+      } : undefined
+    });
   }
 });
 
