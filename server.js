@@ -132,43 +132,47 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
         encoding: 'utf8'
       });
       logger.info('Fern project initialized successfully');
+
+      // Verify the fern directory exists
+      const fernDir = path.join(workDir, 'fern');
+      if (!fs.existsSync(fernDir)) {
+        throw new Error('Fern directory was not created by fern init');
+      }
+      logger.info('Fern directory verified', { fernDir });
+
+      // Create generators.yml file with appropriate content
+      logger.info('Creating generators configuration...');
+      let generatorsContent;
+      
+      if (isCheckOnly) {
+        // For check endpoint, create a minimal generators file
+        generatorsContent = '# Minimal generators file for validation';
+      } else {
+        // For generate endpoint, create a full generators config
+        generatorsContent = generateFernGeneratorsConfig(language, packageName, config);
+      }
+      
+      // Write generators.yml to the fern directory
+      const fernGeneratorsPath = path.join(fernDir, 'generators.yml');
+      fs.writeFileSync(fernGeneratorsPath, generatorsContent);
+      logger.info('Created generators.yml', { path: fernGeneratorsPath });
+      
+      // Create output directory for generated files
+      const outputDir = path.join(workDir, 'generated');
+      fs.ensureDirSync(outputDir);
+      logger.info('Created output directory', { outputDir });
+      
+      return fernDir;
     } catch (initError) {
       logger.error('Error initializing Fern project:', {
         error: initError.message,
         stderr: initError.stderr,
-        stdout: initError.stdout
+        stdout: initError.stdout,
+        workDir,
+        workDirContents: fs.existsSync(workDir) ? fs.readdirSync(workDir) : 'Directory not found'
       });
       throw new Error(`Failed to initialize Fern project: ${initError.message}`);
     }
-    
-    // Create generators.yml file with appropriate content
-    logger.info('Creating generators configuration...');
-    let generatorsContent;
-    
-    if (isCheckOnly) {
-      // For check endpoint, create a minimal generators file
-      generatorsContent = '# Minimal generators file for validation';
-    } else {
-      // For generate endpoint, create a full generators config
-      generatorsContent = generateFernGeneratorsConfig(language, packageName, config);
-    }
-    
-    // Write generators.yml to the fern directory
-    const fernDir = path.join(workDir, 'fern');
-    const fernGeneratorsPath = path.join(fernDir, 'generators.yml');
-    fs.writeFileSync(fernGeneratorsPath, generatorsContent);
-    
-    logger.info('Created Fern project structure', {
-      fernDir,
-      configPath: fernGeneratorsPath
-    });
-    
-    // Create output directory for generated files
-    const outputDir = path.join(workDir, 'generated');
-    fs.ensureDirSync(outputDir);
-    logger.info('Created output directory', { outputDir });
-    
-    return fernDir;
   } catch (error) {
     logger.error('Error in setupFernProject:', error);
     throw error;
