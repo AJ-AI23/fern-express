@@ -211,9 +211,10 @@ const setupFernProject = async (req, workDir, options = {}) => {
 
 // Helper function to generate Fern generators config
 function generateFernGeneratorsConfig(options) {
-  let generators = `api:
-  path: ./openapi/openapi.yml
-`;
+  //let generators = `api:
+  //path: ./openapi/openapi.yml
+//`;
+  let generators = '';
   
   switch (options.language) {
     case 'typescript':
@@ -221,7 +222,7 @@ function generateFernGeneratorsConfig(options) {
   typescript:
     generators:
       - name: fernapi/fern-typescript-node-sdk
-        version: 0.31.0
+        version: 0.51.7
         output:
           location: local-file-system
           path: ./generated
