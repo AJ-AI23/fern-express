@@ -333,7 +333,7 @@ class ValidationError extends Error {
 app.post('/check', checkApiKey, async (req, res) => {
   logger.info('Received OpenAPI validation request');
 
-  const options = req.body.config ? JSON.parse(req.body.config) : { language: 'typescript', packageName: 'api-client' };
+  const options = req.body.options ? JSON.parse(req.body.options) : { language: 'typescript', packageName: 'api-client' };
   // Use isCheckOnly flag
   options.isCheckOnly = true;
 
@@ -402,7 +402,7 @@ app.post('/check', checkApiKey, async (req, res) => {
 app.post('/generate', checkApiKey, async (req, res) => {
   logger.info('Received SDK generation request');
 
-  const options = req.body.config ? JSON.parse(req.body.config) : { language: 'typescript', packageName: 'api-client' };
+  const options = req.body.options ? JSON.parse(req.body.options) : { language: 'typescript', packageName: 'api-client' };
   // Use isCheckOnly flag
   options.isCheckOnly = false;
   
