@@ -24,6 +24,7 @@ if (!process.env.API_KEY) {
 }
 
 const config = {
+  orgName: process.env.ORG_NAME || 'craftman',
   fernCliVersion: process.env.FERN_CLI_VERSION || '0.61.19',
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '52428800'), // 50MB in bytes
   tempDir: path.resolve(process.cwd(), process.env.TEMP_DIR || '/tmp'),
@@ -160,7 +161,7 @@ const setupFernProject = async (req, workDir, options = {}) => {
 
       // Initialize Fern project with the OpenAPI spec using local mode
       logger.info('Running fern init command...');
-      const initOutput = execSync(`fern init --openapi ./openapi.yml`, {
+      const initOutput = execSync(`fern init --openapi ./openapi.yml --organization ${config.orgName} --version ${config.fernCliVersion}`, {
         cwd: workDir,
         stdio: 'pipe',
         encoding: 'utf8'
