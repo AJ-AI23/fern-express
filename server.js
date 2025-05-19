@@ -149,7 +149,7 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
     logger.info('Initializing Fern project...');
     try {
       // Log directory structure before fern init
-      logger.info('Directory structure BEFORE fern init:\n' + listDirectoryRecursive(workDir+"/.."));
+      logger.info('Directory structure BEFORE fern init:\n' + listDirectoryRecursive(workDir+"/../.."));
 
       // Initialize Fern project with the OpenAPI spec using local mode
       logger.info('Running fern init command...');
@@ -161,7 +161,7 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
       logger.info('Fern init command output:', { output: initOutput });
 
       // Log directory structure after fern init
-      logger.info('Directory structure AFTER fern init:\n' + listDirectoryRecursive(workDir + "/.."));
+      logger.info('Directory structure AFTER fern init:\n' + listDirectoryRecursive(workDir + "/../.."));
 
       // Verify the fern directory exists
       const fernDir = path.join(workDir, 'fern');
