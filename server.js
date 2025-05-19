@@ -121,24 +121,25 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
       logger.error('Stdout:', installError.stdout);
       throw new Error(`Failed to install Fern CLI: ${installError.message}`);
     }
-    
-    // Create Fern project structure
-    const fernDir = path.join(workDir, 'fern');
-    logger.info('Creating Fern project structure...');
-    fs.ensureDirSync(fernDir);
-    
-    // Create the api directory inside fern (this is the correct structure)
-    const apiDir = path.join(fernDir, 'openapi');
-    fs.ensureDirSync(apiDir);
-    
-    // Copy the spec file to the api directory
-    fs.copySync(specFilePath, path.join(apiDir, 'openapi.yaml'));
-    
-    // Create a basic fern.config.json in the fern directory
-    fs.writeFileSync(path.join(fernDir, 'fern.config.json'), JSON.stringify({
-      "organization": "user",
-      "version": "0.61.19"
-    }));
+
+    // Initialize Fern project with the OpenAPI spec
+    logger.info('Initializing Fern project...');
+    try {
+      // Initialize Fern project with the OpenAPI spec using local mode
+      execSync(`fern init --openapi ${specFilePath} --local`, {
+        cwd: workDir,
+        stdio: DEBUG ? 'inherit' : 'pipe',
+        encoding: 'utf8'
+      });
+      logger.info('Fern project initialized successfully');
+    } catch (initError) {
+      logger.error('Error initializing Fern project:', {
+        error: initError.message,
+        stderr: initError.stderr,
+        stdout: initError.stdout
+      });
+      throw new Error(`Failed to initialize Fern project: ${initError.message}`);
+    }
     
     // Create generators.yml file with appropriate content
     logger.info('Creating generators configuration...');
@@ -153,12 +154,12 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
     }
     
     // Write generators.yml to the fern directory
+    const fernDir = path.join(workDir, 'fern');
     const fernGeneratorsPath = path.join(fernDir, 'generators.yml');
     fs.writeFileSync(fernGeneratorsPath, generatorsContent);
     
     logger.info('Created Fern project structure', {
       fernDir,
-      apiDir,
       configPath: fernGeneratorsPath
     });
     
@@ -578,19 +579,6 @@ app.post('/generate', checkApiKey, async (req, res) => {
     });
   }
 });
-
-// Helper function to get the appropriate generator command arguments for a language (no longer needed)
-function getGeneratorForLanguage(language) {
-  switch (language) {
-    case 'typescript': return '--typescript';
-    case 'python': return '--python';
-    case 'java': return '--java';
-    case 'go': return '--go';
-    case 'ruby': return '--ruby';
-    case 'csharp': return '--csharp';
-    default: return '--typescript'; // Default to TypeScript
-  }
-}
 
 // Function to create a ZIP archive of the generated SDK
 async function createZipArchive(sourceDir, outputPath) {
