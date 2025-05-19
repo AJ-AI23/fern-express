@@ -24,9 +24,9 @@ if (!process.env.API_KEY) {
 }
 
 const config = {
-  fernCliVersion: process.env.FERN_CLI_VERSION || '0.61.18',
+  fernCliVersion: process.env.FERN_CLI_VERSION || '0.61.19',
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '52428800'), // 50MB in bytes
-  tempDir: process.env.TEMP_DIR || '/tmp',
+  tempDir: path.resolve(process.cwd(), process.env.TEMP_DIR || '/tmp'),
   // ... other config options
 };
 
@@ -60,9 +60,6 @@ app.use(fileUpload({
   useTempFiles: true,
   tempFileDir: config.tempDir
 }));
-
-// Create tmp directory if it doesn't exist
-fs.ensureDirSync(config.tempDir);
 
 // API Key middleware
 const checkApiKey = (req, res, next) => {
@@ -133,7 +130,7 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
     // Explicitly install Fern CLI globally before using it
     logger.info('Installing Fern CLI globally...');
     try {
-      execSync(`npm install -g fern-api@${config.fernCliVersion || '0.61.18'}`, { 
+      execSync(`npm install --omit=dev -g fern-api@${config.fernCliVersion || '0.61.18'}`, { 
         stdio: DEBUG ? 'inherit' : 'pipe',
         encoding: 'utf8' 
       });
