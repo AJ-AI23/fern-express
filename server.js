@@ -432,7 +432,7 @@ app.post('/generate', checkApiKey, async (req, res) => {
         // Use --local flag for local generation in Docker
         logger.info('Running Fern generate command...');
         const genOutput = execSync('fern generate --local --group ' + options.language, { 
-          cwd: workDir, 
+          cwd: fernDir, 
           stdio: 'pipe',
           encoding: 'utf8'
         });
