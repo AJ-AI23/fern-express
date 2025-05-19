@@ -125,16 +125,39 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
     // Initialize Fern project with the OpenAPI spec
     logger.info('Initializing Fern project...');
     try {
+      // Log directory structure before fern init
+      logger.info('Directory structure BEFORE fern init:', {
+        workDir,
+        workDirContents: fs.existsSync(workDir) ? fs.readdirSync(workDir) : 'Directory not found',
+        specFilePath,
+        specFileExists: fs.existsSync(specFilePath)
+      });
+
       // Initialize Fern project with the OpenAPI spec using local mode
-      execSync(`fern init --openapi ${specFilePath} --local`, {
+      logger.info('Running fern init command...');
+      const initOutput = execSync(`fern init --openapi ${specFilePath} --local`, {
         cwd: workDir,
-        stdio: DEBUG ? 'inherit' : 'pipe',
+        stdio: 'pipe',
         encoding: 'utf8'
       });
-      logger.info('Fern project initialized successfully');
+      logger.info('Fern init command output:', { output: initOutput });
+
+      // Log directory structure after fern init
+      const fernDir = path.join(workDir, 'fern');
+      const openapiDir = path.join(fernDir, 'openapi');
+      
+      logger.info('Directory structure AFTER fern init:', {
+        workDir,
+        workDirContents: fs.existsSync(workDir) ? fs.readdirSync(workDir) : 'Directory not found',
+        fernDir,
+        fernDirExists: fs.existsSync(fernDir),
+        fernDirContents: fs.existsSync(fernDir) ? fs.readdirSync(fernDir) : 'Directory not found',
+        openapiDir,
+        openapiDirExists: fs.existsSync(openapiDir),
+        openapiDirContents: fs.existsSync(openapiDir) ? fs.readdirSync(openapiDir) : 'Directory not found'
+      });
 
       // Verify the fern directory exists
-      const fernDir = path.join(workDir, 'fern');
       if (!fs.existsSync(fernDir)) {
         throw new Error('Fern directory was not created by fern init');
       }
@@ -169,7 +192,11 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
         stderr: initError.stderr,
         stdout: initError.stdout,
         workDir,
-        workDirContents: fs.existsSync(workDir) ? fs.readdirSync(workDir) : 'Directory not found'
+        workDirContents: fs.existsSync(workDir) ? fs.readdirSync(workDir) : 'Directory not found',
+        fernDir: path.join(workDir, 'fern'),
+        fernDirExists: fs.existsSync(path.join(workDir, 'fern')),
+        openapiDir: path.join(workDir, 'fern', 'openapi'),
+        openapiDirExists: fs.existsSync(path.join(workDir, 'fern', 'openapi'))
       });
       throw new Error(`Failed to initialize Fern project: ${initError.message}`);
     }
