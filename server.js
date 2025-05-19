@@ -210,21 +210,25 @@ const setupFernProject = async (req, workDir, options = {}) => {
 
 // Helper function to generate Fern generators config
 function generateFernGeneratorsConfig(options) {
-  let generators = '';
+  let generators = `api: 
+  path: ./openapi/openapi.yml
+  `;
   
   switch (options.language) {
     case 'typescript':
-      generators = `groups:
+      generators += `groups:
   typescript:
     generators:
       - name: fernapi/fern-typescript-node-sdk
-        version: 1.0.0
+        version: 0.31.0
         output:
           location: local-file-system
-          path: ./generated`;
+          path: ./generated
+      config:
+          namespaceExport: ${options.packageName}`;
       break;
     case 'python':
-      generators = `groups:
+      generators += `groups:
   python:
     generators:
       - name: fernapi/fern-python-sdk
@@ -238,7 +242,7 @@ function generateFernGeneratorsConfig(options) {
           include_tests: ${options.includeTests || false}`;
       break;
     case 'java':
-      generators = `groups:
+      generators += `groups:
   java:
     generators:
       - name: fernapi/fern-java-sdk
@@ -253,7 +257,7 @@ function generateFernGeneratorsConfig(options) {
             tests: ${options.includeTests || false}`;
       break;
     case 'go':
-      generators = `groups:
+      generators += `groups:
   go:
     generators:
       - name: fernapi/fern-go-sdk
@@ -268,7 +272,7 @@ function generateFernGeneratorsConfig(options) {
           include-tests: ${options.includeTests || false}`;
       break;
     case 'ruby':
-      generators = `groups:
+      generators += `groups:
   ruby:
     generators:
       - name: fernapi/fern-ruby-sdk
@@ -282,7 +286,7 @@ function generateFernGeneratorsConfig(options) {
           include-tests: ${options.includeTests || false}`;
       break;
     case 'csharp':
-      generators = `groups:
+      generators += `groups:
   csharp:
     generators:
       - name: fernapi/fern-csharp-sdk
@@ -296,7 +300,7 @@ function generateFernGeneratorsConfig(options) {
           include-tests: ${options.includeTests || false}`;
       break;
     default:
-      generators = `groups:
+      generators += `groups:
   typescript:
     generators:
       - name: fernapi/fern-typescript-node-sdk
@@ -428,7 +432,7 @@ app.post('/generate', checkApiKey, async (req, res) => {
         // Use --local flag for local generation in Docker
         logger.info('Running Fern generate command...');
         const genOutput = execSync('fern generate --local --group ' + options.language, { 
-          cwd: fernDir, 
+          cwd: workDir, 
           stdio: 'pipe',
           encoding: 'utf8'
         });
@@ -438,6 +442,9 @@ app.post('/generate', checkApiKey, async (req, res) => {
           output: genOutput,
           workDir
         });
+
+        // Log directory structure after generation
+        logger.info('Directory structure AFTER generation:\n' + listDirectoryRecursive(workDir));
 
         // Verify the generated directory exists and log its contents
         const generatedDir = path.join(workDir, 'generated');
