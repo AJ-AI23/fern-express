@@ -102,12 +102,7 @@ function listDirectoryRecursive(dir, indent = '') {
 // Common setup function for both /check and /generate endpoints
 const setupFernProject = async (req, workDir, options = {}) => {
   try {
-    // Extract options with defaults
-    const language = options.language || 'typescript';
-    const packageName = options.packageName || 'api-client';
-    const config = options.config || {};
-    const isCheckOnly = options.isCheckOnly || false;
-    
+   
     // Validate request
     if (!req.files || !req.files.spec) {
       throw new Error('No OpenAPI spec file provided');
@@ -182,7 +177,7 @@ const setupFernProject = async (req, workDir, options = {}) => {
 
       // Create generators.yml file with appropriate content
       logger.info('Creating generators configuration...');
-      let generatorsContent = generateFernGeneratorsConfig(language, packageName, config);
+      let generatorsContent = generateFernGeneratorsConfig(options);
       
       // Write generators.yml to the fern directory
       const fernGeneratorsPath = path.join(fernDir, 'generators.yml');
@@ -213,10 +208,10 @@ const setupFernProject = async (req, workDir, options = {}) => {
 };
 
 // Helper function to generate Fern generators config
-function generateFernGeneratorsConfig(language, packageName, config) {
+function generateFernGeneratorsConfig(options) {
   let generators = '';
   
-  switch (language) {
+  switch (options.language) {
     case 'typescript':
       generators = `groups:
   typescript:
@@ -228,8 +223,8 @@ function generateFernGeneratorsConfig(language, packageName, config) {
           path: ./generated
         config:
           outputSourceFiles: true
-          includeExamples: ${config.includeExamples || true}
-          includeTests: ${config.includeTests || false}`;
+          includeExamples: ${options.includeExamples || true}
+          includeTests: ${options.includeTests || false}`;
       break;
     case 'python':
       generators = `groups:
@@ -242,8 +237,8 @@ function generateFernGeneratorsConfig(language, packageName, config) {
           path: ./generated/python
         config:
           outputSourceFiles: true
-          include_examples: ${config.includeExamples || true}
-          include_tests: ${config.includeTests || false}`;
+          include_examples: ${options.includeExamples || true}
+          include_tests: ${options.includeTests || false}`;
       break;
     case 'java':
       generators = `groups:
@@ -257,8 +252,8 @@ function generateFernGeneratorsConfig(language, packageName, config) {
         config:
           outputSourceFiles: true
           includes:
-            examples: ${config.includeExamples || true}
-            tests: ${config.includeTests || false}`;
+            examples: ${options.includeExamples || true}
+            tests: ${options.includeTests || false}`;
       break;
     case 'go':
       generators = `groups:
@@ -271,9 +266,9 @@ function generateFernGeneratorsConfig(language, packageName, config) {
           path: ./generated/go
         config:
           outputSourceFiles: true
-          module-path: github.com/${packageName}/sdk
-          include-examples: ${config.includeExamples || true}
-          include-tests: ${config.includeTests || false}`;
+          module-path: github.com/${options.packageName}/sdk
+          include-examples: ${options.includeExamples || true}
+          include-tests: ${options.includeTests || false}`;
       break;
     case 'ruby':
       generators = `groups:
@@ -286,8 +281,8 @@ function generateFernGeneratorsConfig(language, packageName, config) {
           path: ./generated/ruby
         config:
           outputSourceFiles: true
-          include-examples: ${config.includeExamples || true}
-          include-tests: ${config.includeTests || false}`;
+          include-examples: ${options.includeExamples || true}
+          include-tests: ${options.includeTests || false}`;
       break;
     case 'csharp':
       generators = `groups:
@@ -300,8 +295,8 @@ function generateFernGeneratorsConfig(language, packageName, config) {
           path: ./generated/csharp
         config:
           outputSourceFiles: true
-          include-examples: ${config.includeExamples || true}
-          include-tests: ${config.includeTests || false}`;
+          include-examples: ${options.includeExamples || true}
+          include-tests: ${options.includeTests || false}`;
       break;
     default:
       generators = `groups:
@@ -314,8 +309,8 @@ function generateFernGeneratorsConfig(language, packageName, config) {
           path: ./generated/typescript
         config:
           outputSourceFiles: true
-          includeExamples: ${config.includeExamples || true}
-          includeTests: ${config.includeTests || false}`;
+          includeExamples: ${options.includeExamples || true}
+          includeTests: ${options.includeTests || false}`;
   }
   
   return generators;
@@ -337,21 +332,10 @@ class ValidationError extends Error {
 // New endpoint: Validate OpenAPI spec using Fern check command
 app.post('/check', checkApiKey, async (req, res) => {
   logger.info('Received OpenAPI validation request');
-  
-  // Validate request parameters
-  if (!req.body.language) {
-    return res.status(400).json({ error: 'Language parameter is required' });
-  }
 
-  if (!req.body.packageName) {
-    return res.status(400).json({ error: 'Package name is required' });
-  }
-
-  const language = req.body.language;
-  const packageName = req.body.packageName;
-  const requestConfig = req.body.config ? JSON.parse(req.body.config) : {};
+  const options = req.body.config ? JSON.parse(req.body.config) : { language: 'typescript', packageName: 'api-client' };
   // Use isCheckOnly flag
-  requestConfig.isCheckOnly = true;
+  options.isCheckOnly = true;
 
   // Create a unique working directory
   const workDir = path.join(config.tempDir, `fern-check-${Date.now()}`);
@@ -359,11 +343,7 @@ app.post('/check', checkApiKey, async (req, res) => {
   
   try {
     
-    const fernDir = await setupFernProject(req, workDir, {
-      language,
-      packageName,
-      config: requestConfig
-    });
+    const fernDir = await setupFernProject(req, workDir, options);
     
     // Run Fern check command
     logger.info('Running Fern check command...');
@@ -420,33 +400,18 @@ app.post('/check', checkApiKey, async (req, res) => {
 
 // SDK Generation endpoint
 app.post('/generate', checkApiKey, async (req, res) => {
-  logger.info('Received SDK generation request', { 
-    language: req.body.language,
-    packageName: req.body.packageName,
-    hasConfig: !!req.body.config,
-    hasFiles: !!req.files
-  });
+  logger.info('Received SDK generation request');
+
+  const options = req.body.config ? JSON.parse(req.body.config) : { language: 'typescript', packageName: 'api-client' };
+  // Use isCheckOnly flag
+  options.isCheckOnly = false;
   
   try {
     // Validate request parameters
-    if (!req.body.language) {
-      logger.error('Missing language parameter');
-      return res.status(400).json({ error: 'Language parameter is required' });
-    }
-    
-    if (!req.body.packageName) {
-      logger.error('Missing package name parameter');
-      return res.status(400).json({ error: 'Package name is required' });
-    }
-
     if (!req.files || !req.files.spec) {
       logger.error('No spec file provided in request');
       return res.status(400).json({ error: 'OpenAPI spec file is required' });
     }
-    
-    const language = req.body.language;
-    const packageName = req.body.packageName;
-    const requestConfig = req.body.config ? JSON.parse(req.body.config) : {};
     
     // Create a unique working directory
     const workDir = path.join(config.tempDir, `fern-${Date.now()}`);
@@ -456,15 +421,11 @@ app.post('/generate', checkApiKey, async (req, res) => {
     try {
       
       // Use common setup function with generation options
-      logger.info('Setting up Fern project', { language, packageName });
-      const fernDir = await setupFernProject(req, workDir, {
-        language,
-        packageName,
-        config: requestConfig
-      });
+      logger.info('Setting up Fern project (version: '+config.fernCliVersion+')');
+      const fernDir = await setupFernProject(req, workDir, options);
       
       // Generate SDK with better error handling
-      logger.info(`Generating ${language} SDK...`);
+      logger.info(`Generating ${options.language} SDK...`);
       try {
         // Log the working directory structure before generation
         logger.info('Working directory structure before generation:', {
@@ -474,7 +435,7 @@ app.post('/generate', checkApiKey, async (req, res) => {
 
         // Use --local flag for local generation in Docker
         logger.info('Running Fern generate command...');
-        const genOutput = execSync('fern generate --local --group ' + language, { 
+        const genOutput = execSync('fern generate --local --group ' + options.language, { 
           cwd: workDir, 
           stdio: 'pipe',
           encoding: 'utf8'
@@ -503,23 +464,6 @@ app.post('/generate', checkApiKey, async (req, res) => {
           contents: generatedContents,
           fileCount: generatedContents.length
         });
-
-        // If there's a language-specific directory, log its contents too
-        const languageDir = path.join(generatedDir, language);
-        if (fs.existsSync(languageDir)) {
-          const languageContents = fs.readdirSync(languageDir);
-          logger.info('Language-specific directory contents:', {
-            languageDir,
-            contents: languageContents,
-            fileCount: languageContents.length
-          });
-        } else {
-          logger.warn('Language-specific directory not found', {
-            language,
-            languageDir,
-            generatedContents
-          });
-        }
 
         logger.info('Generated directory verified', { generatedDir });
       } catch (genError) {
@@ -565,7 +509,7 @@ app.post('/generate', checkApiKey, async (req, res) => {
       
       // Send the ZIP file as a response
       res.setHeader('Content-Type', 'application/zip');
-      res.setHeader('Content-Disposition', `attachment; filename=${packageName}-${language}-sdk.zip`);
+      res.setHeader('Content-Disposition', `attachment; filename=${options.packageName}-${options.language}-sdk.zip`);
       
       try {
         fs.createReadStream(zipPath).pipe(res);
