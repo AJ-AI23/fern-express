@@ -105,6 +105,7 @@ const setupFernProject = async (req, workDir, options = {}) => {
    
     // Validate request
     if (!req.files || !req.files.spec) {
+      logger.error('No OpenAPI spec file provided');
       throw new Error('No OpenAPI spec file provided');
     }
     
@@ -342,7 +343,7 @@ app.post('/check', checkApiKey, async (req, res) => {
   fs.ensureDirSync(workDir);
   
   try {
-    
+
     const fernDir = await setupFernProject(req, workDir, options);
     
     // Run Fern check command
@@ -407,11 +408,6 @@ app.post('/generate', checkApiKey, async (req, res) => {
   options.isCheckOnly = false;
   
   try {
-    // Validate request parameters
-    if (!req.files || !req.files.spec) {
-      logger.error('No spec file provided in request');
-      return res.status(400).json({ error: 'OpenAPI spec file is required' });
-    }
     
     // Create a unique working directory
     const workDir = path.join(config.tempDir, `fern-${Date.now()}`);
