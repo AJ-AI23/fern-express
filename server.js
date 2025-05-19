@@ -179,7 +179,8 @@ const setupFernProject = async (req, workDir, options = {}) => {
       // Create generators.yml file with appropriate content
       logger.info('Creating generators configuration...');
       let generatorsContent = generateFernGeneratorsConfig(options);
-      
+      logger.info('Generators configuration created', { generatorsContent });
+
       // Write generators.yml to the fern directory
       const fernGeneratorsPath = path.join(fernDir, 'generators.yml');
       fs.writeFileSync(fernGeneratorsPath, generatorsContent);
@@ -216,7 +217,7 @@ function generateFernGeneratorsConfig(options) {
   
   switch (options.language) {
     case 'typescript':
-      generators += `groups:
+      generators += ` groups:
   typescript:
     generators:
       - name: fernapi/fern-typescript-node-sdk
@@ -228,7 +229,7 @@ function generateFernGeneratorsConfig(options) {
           namespaceExport: ${options.packageName}`;
       break;
     case 'python':
-      generators += `groups:
+      generators += ` groups:
   python:
     generators:
       - name: fernapi/fern-python-sdk
@@ -242,7 +243,7 @@ function generateFernGeneratorsConfig(options) {
           include_tests: ${options.includeTests || false}`;
       break;
     case 'java':
-      generators += `groups:
+      generators += ` groups:
   java:
     generators:
       - name: fernapi/fern-java-sdk
@@ -257,7 +258,7 @@ function generateFernGeneratorsConfig(options) {
             tests: ${options.includeTests || false}`;
       break;
     case 'go':
-      generators += `groups:
+      generators += ` groups:
   go:
     generators:
       - name: fernapi/fern-go-sdk
@@ -272,7 +273,7 @@ function generateFernGeneratorsConfig(options) {
           include-tests: ${options.includeTests || false}`;
       break;
     case 'ruby':
-      generators += `groups:
+      generators += ` groups:
   ruby:
     generators:
       - name: fernapi/fern-ruby-sdk
@@ -286,7 +287,7 @@ function generateFernGeneratorsConfig(options) {
           include-tests: ${options.includeTests || false}`;
       break;
     case 'csharp':
-      generators += `groups:
+      generators += ` groups:
   csharp:
     generators:
       - name: fernapi/fern-csharp-sdk
@@ -300,7 +301,7 @@ function generateFernGeneratorsConfig(options) {
           include-tests: ${options.includeTests || false}`;
       break;
     default:
-      generators += `groups:
+      generators += ` groups:
   typescript:
     generators:
       - name: fernapi/fern-typescript-node-sdk
