@@ -115,7 +115,11 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
     // Save spec file
     const specFile = req.files.spec;
     await specFile.mv(specFilePath);
-    logger.info(`Spec file saved to ${specFilePath}`);
+    logger.info(`Spec file from ${specFile.path} saved to ${specFilePath}`);
+    //Verify the spec file is moved to the temp directory
+    if (!fs.existsSync(specFilePath)) {
+      throw new Error('Spec file was not moved to the temp directory');
+    }
     
     // Check for npm installation
     logger.info('Verifying npm availability...');
