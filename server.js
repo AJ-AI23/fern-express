@@ -99,7 +99,7 @@ function listDirectoryRecursive(dir, indent = '') {
 }
 
 // Common setup function for both /check and /generate endpoints
-const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
+const setupFernProject = async (req, workDir, options = {}) => {
   try {
     // Extract options with defaults
     const language = options.language || 'typescript';
@@ -114,8 +114,14 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
     
     // Save spec file
     const specFile = req.files.spec;
-    await specFile.mv(specFilePath);
-    logger.info(`Spec file from ${specFile.path} saved to ${specFilePath}`);
+    const specFilePath = path.join(workDir, 'openapi.yaml');
+    try {
+      await specFile.mv(specFilePath);
+      logger.info(`Spec file saved to ${specFilePath}`);
+    } catch (error) {
+      logger.error('Error moving spec file:', error.message);
+      throw new Error('Failed to move spec file to temp directory');
+    }
     //Verify the spec file is moved to the temp directory
     if (!fs.existsSync(specFilePath)) {
       throw new Error('Spec file was not moved to the temp directory');
@@ -150,11 +156,11 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
     logger.info('Initializing Fern project...');
     try {
       // Log directory structure before fern init
-      logger.info('Directory structure BEFORE fern init:\n' + listDirectoryRecursive(workDir+"/../.."));
+      logger.info('Directory structure BEFORE fern init:\n' + listDirectoryRecursive(workDir));
 
       // Initialize Fern project with the OpenAPI spec using local mode
       logger.info('Running fern init command...');
-      const initOutput = execSync(`fern init --openapi ${specFilePath}`, {
+      const initOutput = execSync(`fern init --openapi ./openapi.yml`, {
         cwd: workDir,
         stdio: 'pipe',
         encoding: 'utf8'
@@ -162,7 +168,7 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
       logger.info('Fern init command output:', { output: initOutput });
 
       // Log directory structure after fern init
-      logger.info('Directory structure AFTER fern init:\n' + listDirectoryRecursive(workDir + "/../.."));
+      logger.info('Directory structure AFTER fern init:\n' + listDirectoryRecursive(workDir));
 
       // Verify the fern directory exists
       const fernDir = path.join(workDir, 'fern');
@@ -358,9 +364,8 @@ app.post('/check', checkApiKey, async (req, res) => {
   fs.ensureDirSync(workDir);
   
   try {
-    const specFilePath = path.join(workDir, 'openapi.yaml');
     
-    const fernDir = await setupFernProject(req, workDir, specFilePath, {
+    const fernDir = await setupFernProject(req, workDir, {
       language,
       packageName,
       config: requestConfig
@@ -455,11 +460,10 @@ app.post('/generate', checkApiKey, async (req, res) => {
     fs.ensureDirSync(workDir);
     
     try {
-      const specFilePath = path.join(workDir, 'openapi.yaml');
       
       // Use common setup function with generation options
       logger.info('Setting up Fern project', { language, packageName });
-      const fernDir = await setupFernProject(req, workDir, specFilePath, {
+      const fernDir = await setupFernProject(req, workDir, {
         language,
         packageName,
         config: requestConfig
