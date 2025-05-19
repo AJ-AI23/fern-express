@@ -156,39 +156,36 @@ const setupFernProject = async (req, workDir, options = {}) => {
     // Initialize Fern project with the OpenAPI spec
     logger.info('Initializing Fern project...');
     try {
-      // Log directory structure before fern init
-      logger.info('Directory structure BEFORE fern init:\n' + listDirectoryRecursive(workDir));
+      // Log directory structure before setup
+      logger.info('Directory structure BEFORE setup:\n' + listDirectoryRecursive(workDir));
 
-      // Initialize Fern project with the OpenAPI spec using local mode
-      logger.info('Running fern init command...');
-      const initOutput = execSync(`fern init --openapi ./openapi.yml --organization ${config.orgName} --version ${config.fernCliVersion}`, {
-        cwd: workDir,
-        stdio: 'pipe',
-        encoding: 'utf8'
-      });
-      logger.info('Fern init command output:', { output: initOutput });
-
-      // Log directory structure after fern init
-      logger.info('Directory structure AFTER fern init:\n' + listDirectoryRecursive(workDir));
-
-      // Verify the fern directory exists
+      // Create fern directory structure manually
       const fernDir = path.join(workDir, 'fern');
-      if (!fs.existsSync(fernDir)) {
-        throw new Error('Fern directory was not created by fern init');
-      }
-      logger.info('Fern directory verified', { fernDir });
+      fs.ensureDirSync(fernDir);
+      logger.info('Created fern directory', { fernDir });
+
+      // Create api directory and move spec file
+      const apiDir = path.join(fernDir, 'openapi');
+      fs.ensureDirSync(apiDir);
+      const apiSpecPath = path.join(apiDir, 'openapi.yml');
+      fs.copyFileSync(specFilePath, apiSpecPath);
+      logger.info('Created api directory and copied spec file', { apiSpecPath });
+
+      // Create fern.json configuration
+      const fernConfig = {
+        organization: config.orgName,
+        version: config.fernCliVersion,
+        api: {
+          path: "./openapi/openapi.yml"
+        }
+      };
+      const fernConfigPath = path.join(fernDir, 'fern.config.json');
+      fs.writeFileSync(fernConfigPath, JSON.stringify(fernConfig, null, 2));
+      logger.info('Created fern.config.json configuration', { fernConfigPath });
 
       // Create generators.yml file with appropriate content
       logger.info('Creating generators configuration...');
-      let generatorsContent;
-      
-      if (isCheckOnly) {
-        // For check endpoint, create a minimal generators file
-        generatorsContent = '# Minimal generators file for validation';
-      } else {
-        // For generate endpoint, create a full generators config
-        generatorsContent = generateFernGeneratorsConfig(language, packageName, config);
-      }
+      let generatorsContent = generateFernGeneratorsConfig(language, packageName, config);
       
       // Write generators.yml to the fern directory
       const fernGeneratorsPath = path.join(fernDir, 'generators.yml');
@@ -196,7 +193,7 @@ const setupFernProject = async (req, workDir, options = {}) => {
       logger.info('Created generators.yml', { path: fernGeneratorsPath });
       
       // Create output directory for generated files
-      const outputDir = path.join(workDir, 'generated');
+      const outputDir = path.join(fernDir, 'generated');
       fs.ensureDirSync(outputDir);
       logger.info('Created output directory', { outputDir });
       
@@ -205,13 +202,12 @@ const setupFernProject = async (req, workDir, options = {}) => {
       
       return fernDir;
     } catch (initError) {
-      logger.error('Error initializing Fern project:', {
+      logger.error('Error setting up Fern project:', {
         error: initError.message,
-        stderr: initError.stderr,
-        stdout: initError.stdout,
+        stack: initError.stack,
         directoryStructure: listDirectoryRecursive(workDir)
       });
-      throw new Error(`Failed to initialize Fern project: ${initError.message}`);
+      throw new Error(`Failed to set up Fern project: ${initError.message}`);
     }
   } catch (error) {
     logger.error('Error in setupFernProject:', error);
@@ -481,7 +477,7 @@ app.post('/generate', checkApiKey, async (req, res) => {
 
         // Use --local flag for local generation in Docker
         logger.info('Running Fern generate command...');
-        const genOutput = execSync('fern generate --group ' + language, { 
+        const genOutput = execSync('fern generate --local --group ' + language, { 
           cwd: workDir, 
           stdio: 'pipe',
           encoding: 'utf8'
