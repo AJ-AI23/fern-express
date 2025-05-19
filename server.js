@@ -221,11 +221,7 @@ function generateFernGeneratorsConfig(options) {
         version: 1.0.0
         output:
           location: local-file-system
-          path: ./generated
-        config:
-          outputSourceFiles: true
-          includeExamples: ${options.includeExamples || true}
-          includeTests: ${options.includeTests || false}`;
+          path: ./generated`;
       break;
     case 'python':
       generators = `groups:
