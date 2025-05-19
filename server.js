@@ -153,7 +153,7 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
 
       // Initialize Fern project with the OpenAPI spec using local mode
       logger.info('Running fern init command...');
-      const initOutput = execSync(`fern init --openapi ${specFilePath} --local`, {
+      const initOutput = execSync(`fern init --openapi ${specFilePath}`, {
         cwd: workDir,
         stdio: 'pipe',
         encoding: 'utf8'
