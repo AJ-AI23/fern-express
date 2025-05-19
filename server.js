@@ -128,7 +128,7 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
     fs.ensureDirSync(fernDir);
     
     // Create the api directory inside fern (this is the correct structure)
-    const apiDir = path.join(fernDir, 'api');
+    const apiDir = path.join(fernDir, 'openapi');
     fs.ensureDirSync(apiDir);
     
     // Copy the spec file to the api directory
@@ -187,7 +187,7 @@ function generateFernGeneratorsConfig(language, packageName, config) {
         version: 1.0.0
         output:
           location: local-file-system
-          path: ./generated/typescript
+          path: ./generated
         config:
           outputSourceFiles: true
           includeExamples: ${config.includeExamples || true}
@@ -438,7 +438,7 @@ app.post('/generate', checkApiKey, async (req, res) => {
 
         // Use --local flag for local generation in Docker
         logger.info('Running Fern generate command...');
-        const genOutput = execSync('fern generate --local', { 
+        const genOutput = execSync('fern generate --group ' + language, { 
           cwd: workDir, 
           stdio: 'pipe',
           encoding: 'utf8'
