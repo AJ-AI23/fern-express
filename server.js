@@ -78,6 +78,29 @@ const checkApiKey = (req, res, next) => {
   next();
 };
 
+// Helper function to list directory structure recursively
+function listDirectoryRecursive(dir, indent = '') {
+  const stats = fs.statSync(dir);
+  if (!stats.isDirectory()) {
+    return `${indent}${path.basename(dir)}`;
+  }
+
+  const items = fs.readdirSync(dir);
+  const structure = [`${indent}${path.basename(dir)}/`];
+  
+  items.forEach(item => {
+    const itemPath = path.join(dir, item);
+    const itemStats = fs.statSync(itemPath);
+    if (itemStats.isDirectory()) {
+      structure.push(listDirectoryRecursive(itemPath, indent + '  '));
+    } else {
+      structure.push(`${indent}  ${item}`);
+    }
+  });
+  
+  return structure.join('\n');
+}
+
 // Common setup function for both /check and /generate endpoints
 const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
   try {
@@ -126,12 +149,7 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
     logger.info('Initializing Fern project...');
     try {
       // Log directory structure before fern init
-      logger.info('Directory structure BEFORE fern init:', {
-        workDir,
-        workDirContents: fs.existsSync(workDir) ? fs.readdirSync(workDir) : 'Directory not found',
-        specFilePath,
-        specFileExists: fs.existsSync(specFilePath)
-      });
+      logger.info('Directory structure BEFORE fern init:\n' + listDirectoryRecursive(workDir));
 
       // Initialize Fern project with the OpenAPI spec using local mode
       logger.info('Running fern init command...');
@@ -143,21 +161,10 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
       logger.info('Fern init command output:', { output: initOutput });
 
       // Log directory structure after fern init
-      const fernDir = path.join(workDir, 'fern');
-      const openapiDir = path.join(fernDir, 'openapi');
-      
-      logger.info('Directory structure AFTER fern init:', {
-        workDir,
-        workDirContents: fs.existsSync(workDir) ? fs.readdirSync(workDir) : 'Directory not found',
-        fernDir,
-        fernDirExists: fs.existsSync(fernDir),
-        fernDirContents: fs.existsSync(fernDir) ? fs.readdirSync(fernDir) : 'Directory not found',
-        openapiDir,
-        openapiDirExists: fs.existsSync(openapiDir),
-        openapiDirContents: fs.existsSync(openapiDir) ? fs.readdirSync(openapiDir) : 'Directory not found'
-      });
+      logger.info('Directory structure AFTER fern init:\n' + listDirectoryRecursive(workDir));
 
       // Verify the fern directory exists
+      const fernDir = path.join(workDir, 'fern');
       if (!fs.existsSync(fernDir)) {
         throw new Error('Fern directory was not created by fern init');
       }
@@ -185,18 +192,16 @@ const setupFernProject = async (req, workDir, specFilePath, options = {}) => {
       fs.ensureDirSync(outputDir);
       logger.info('Created output directory', { outputDir });
       
+      // Log final directory structure
+      logger.info('Final directory structure:\n' + listDirectoryRecursive(workDir));
+      
       return fernDir;
     } catch (initError) {
       logger.error('Error initializing Fern project:', {
         error: initError.message,
         stderr: initError.stderr,
         stdout: initError.stdout,
-        workDir,
-        workDirContents: fs.existsSync(workDir) ? fs.readdirSync(workDir) : 'Directory not found',
-        fernDir: path.join(workDir, 'fern'),
-        fernDirExists: fs.existsSync(path.join(workDir, 'fern')),
-        openapiDir: path.join(workDir, 'fern', 'openapi'),
-        openapiDirExists: fs.existsSync(path.join(workDir, 'fern', 'openapi'))
+        directoryStructure: listDirectoryRecursive(workDir)
       });
       throw new Error(`Failed to initialize Fern project: ${initError.message}`);
     }
