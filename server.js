@@ -174,14 +174,11 @@ const setupFernProject = async (req, workDir, options = {}) => {
       // Create fern.json configuration
       const fernConfig = {
         organization: config.orgName,
-        version: config.fernCliVersion,
-        api: {
-          path: "./openapi/openapi.yml"
-        }
+        version: config.fernCliVersion
       };
       const fernConfigPath = path.join(fernDir, 'fern.config.json');
       fs.writeFileSync(fernConfigPath, JSON.stringify(fernConfig, null, 2));
-      logger.info('Created fern.config.json configuration', { fernConfigPath });
+      logger.info('Created fern.config.json configuration', { fernConfigPath, fernConfig });
 
       // Create generators.yml file with appropriate content
       logger.info('Creating generators configuration...');
